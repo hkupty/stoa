@@ -1,6 +1,7 @@
 const std = @import("std");
 const shell = @import("./shell.zon");
 const stoa = @import("stoa");
+const git = @import("./git.zig");
 
 const path = std.fs.path;
 const Allocator = std.mem.Allocator;
@@ -8,21 +9,21 @@ const Allocator = std.mem.Allocator;
 var pathname: [std.fs.max_path_bytes]u8 = undefined;
 var prompt: [2 * 1024]u8 = undefined;
 
-pub fn is_git(alloc: Allocator, fpath: []const u8) bool {
-    var iter = path.componentIterator(fpath) catch return false;
+pub fn is_git(alloc: Allocator, fpath: []const u8) ?[]const u8 {
+    var iter = path.componentIterator(fpath) catch return null;
 
     // Skip /home
-    _ = iter.next() orelse return false;
+    _ = iter.next() orelse return null;
 
     // Skip /home/hkupty
-    _ = iter.next() orelse return false;
+    _ = iter.next() orelse return null;
 
     while (iter.next()) |component| {
-        const target = path.join(alloc, &.{ component.path, ".git" }) catch return false;
+        const target = path.join(alloc, &.{ component.path, ".git" }) catch return null;
         std.fs.accessAbsolute(target, .{}) catch continue;
-        return true;
+        return target;
     }
-    return false;
+    return null;
 }
 fn session_file(alloc: Allocator) ?std.fs.File {
     const key = std.process.getEnvVarOwned(alloc, "STOA_SESION") catch {
@@ -53,7 +54,7 @@ pub fn main() void {
 
     @memcpy(prompt[cursor..][0..cwd.len], cwd);
     cursor += cwd.len;
-    if (is_git(alloc, cwd)) {
+    if (is_git(alloc, cwd)) |git_path| {
         check: {
             if (session) |file| {
                 defer file.close();
@@ -63,9 +64,14 @@ pub fn main() void {
             }
         }
 
-        const were_in_git = " [git]";
+        const were_in_git = " [";
         @memcpy(prompt[cursor..][0..were_in_git.len], were_in_git);
         cursor += were_in_git.len;
+        const branch_name = git.parseHead(alloc, git_path);
+        @memcpy(prompt[cursor..][0..branch_name.len], branch_name);
+        cursor += branch_name.len;
+        prompt[cursor] = ']';
+        cursor += 1;
     }
 
     prompt[cursor] = '\n';
