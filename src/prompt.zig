@@ -1,7 +1,7 @@
 const std = @import("std");
 const shell = @import("./shell.zon");
 const stoa = @import("stoa");
-const git = @import("./git.zig");
+const git = @import("./extras/git.zig");
 
 const path = std.fs.path;
 const Allocator = std.mem.Allocator;
@@ -33,7 +33,7 @@ fn session_file(alloc: Allocator) ?std.fs.File {
         // TODO: Must not spill errors
         return null;
     };
-    return std.fs.openFileAbsolute(key, .{ .mode = .read_only }) catch {
+    return std.fs.createFileAbsolute(key, .{}) catch {
         return null;
     };
 }
@@ -54,13 +54,11 @@ pub fn main() void {
     _ = out.write(cwd) catch unreachable;
 
     if (is_git(alloc, cwd)) |git_path| {
-        check: {
-            if (session) |file| {
-                defer file.close();
-                var session_data = stoa.getdata(file) catch break :check;
-                session_data.in_git = true;
-                stoa.stamp(file, session_data) catch break :check;
-            }
+        if (session) |file| {
+            defer file.close();
+            var session_data = stoa.getdata(file) catch unreachable;
+            session_data.in_git = true;
+            stoa.stamp(file, session_data) catch unreachable;
         }
 
         _ = out.write("\x1B[38;5;") catch unreachable;
@@ -68,6 +66,13 @@ pub fn main() void {
         _ = out.write("m [ ") catch unreachable;
         git.parseHeadInto(alloc, git_path, out);
         _ = out.write(" ]\x1B[0m") catch unreachable;
+    } else {
+        if (session) |file| {
+            defer file.close();
+            var session_data = stoa.getdata(file) catch unreachable;
+            session_data.in_git = false;
+            stoa.stamp(file, session_data) catch unreachable;
+        }
     }
 
     out.writeByte('\n') catch unreachable;
