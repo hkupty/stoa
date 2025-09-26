@@ -1,0 +1,7 @@
+.{
+    .prompt = "→",
+    .rprompt = .{
+        .kubernetes,
+        .aws,
+    },
+}
