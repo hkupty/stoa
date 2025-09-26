@@ -1,5 +1,6 @@
 .{
     .prompt = "→",
+    .git_color = "12",
     .rprompt = .{
         .kubernetes,
         .aws,

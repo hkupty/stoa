@@ -7,7 +7,10 @@ const path = std.fs.path;
 const Allocator = std.mem.Allocator;
 
 var pathname: [std.fs.max_path_bytes]u8 = undefined;
+const stdout = std.fs.File.stdout();
 var prompt: [2 * 1024]u8 = undefined;
+var stdout_fwriter = stdout.writer(&prompt);
+var out = &stdout_fwriter.interface;
 
 pub fn is_git(alloc: Allocator, fpath: []const u8) ?[]const u8 {
     var iter = path.componentIterator(fpath) catch return null;
@@ -47,13 +50,9 @@ pub fn main() void {
         break :data "./?";
     };
 
-    // TODO: determine if should break line
-    var cursor: usize = 0;
-    prompt[cursor] = '\n';
-    cursor += 1;
+    out.writeByte('\n') catch unreachable;
+    _ = out.write(cwd) catch unreachable;
 
-    @memcpy(prompt[cursor..][0..cwd.len], cwd);
-    cursor += cwd.len;
     if (is_git(alloc, cwd)) |git_path| {
         check: {
             if (session) |file| {
@@ -64,23 +63,16 @@ pub fn main() void {
             }
         }
 
-        const were_in_git = " [";
-        @memcpy(prompt[cursor..][0..were_in_git.len], were_in_git);
-        cursor += were_in_git.len;
-        const branch_name = git.parseHead(alloc, git_path);
-        @memcpy(prompt[cursor..][0..branch_name.len], branch_name);
-        cursor += branch_name.len;
-        prompt[cursor] = ']';
-        cursor += 1;
+        _ = out.write("\x1B[38;5;") catch unreachable;
+        _ = out.write(shell.git_color) catch unreachable;
+        _ = out.write("m [ ") catch unreachable;
+        git.parseHeadInto(alloc, git_path, out);
+        _ = out.write(" ]\x1B[0m") catch unreachable;
     }
 
-    prompt[cursor] = '\n';
-    cursor += 1;
+    out.writeByte('\n') catch unreachable;
+    _ = out.write(shell.prompt) catch unreachable;
+    out.writeByte(' ') catch unreachable;
 
-    @memcpy(prompt[cursor..][0..shell.prompt.len], shell.prompt);
-    cursor += shell.prompt.len;
-    prompt[cursor] = ' ';
-    cursor += 1;
-
-    _ = std.fs.File.stdout().write(prompt[0..cursor]) catch unreachable;
+    out.flush() catch unreachable;
 }
