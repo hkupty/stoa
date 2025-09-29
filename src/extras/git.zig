@@ -35,9 +35,7 @@ pub fn is_in_git(alloc: Allocator, iter: *PathIterator) ?[]const u8 {
     while (iter.next()) |component| {
         const target = path.join(alloc, &.{ component.path, ".git" }) catch return null;
         std.fs.accessAbsolute(target, .{}) catch continue;
-        return target;
+        return component.path;
     }
     return null;
 }
-
-

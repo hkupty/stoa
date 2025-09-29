@@ -29,29 +29,53 @@ pub fn main() void {
 
     const session = session_file(alloc).?;
 
-    const cwd = std.fs.cwd().realpath(".", &pathname) catch data: {
-        // TODO: Must not spill errors
-        break :data "./?";
-    };
-
     out.writeByte('\n') catch unreachable;
-    _ = out.write(cwd) catch unreachable;
 
     has_git: {
+        const cwd = std.fs.cwd().realpath(".", &pathname) catch {
+            _ = out.write("./?") catch unreachable;
+            break :has_git;
+        };
+
         var path_iter = path.componentIterator(cwd) catch break :has_git;
         defer session.close();
         var session_data = stoa.getdata(session) catch unreachable;
         session_data.in_git = false;
 
         if (git.is_in_git(alloc, &path_iter)) |git_path| {
+            const folder = path.basename(git_path);
+            _ = out.write("\x1B[38;5;") catch unreachable;
+            _ = out.write(shell.repo_color) catch unreachable;
+            out.writeByte('m') catch unreachable;
+            _ = out.write(" ") catch unreachable;
+            _ = out.write(folder) catch unreachable;
+            _ = out.write("\x1B[0m ") catch unreachable;
+
+            var relative_path = cwd[git_path.len..];
+
             session_data.in_git = true;
 
-            var full_git_path = git_path;
+            var full_git_path = path.join(alloc, &.{ git_path, ".git" }) catch unreachable;
 
             if (path_iter.next()) |component| x: {
-                const target = path.join(alloc, &.{ git_path, "worktrees", component.name }) catch break :x;
+                const target = path.join(alloc, &.{ full_git_path, "worktrees", component.name }) catch break :x;
                 std.fs.accessAbsolute(target, .{}) catch break :x;
+                relative_path = cwd[component.path.len..];
                 full_git_path = target;
+
+                _ = out.write("\x1B[38;5;") catch unreachable;
+                _ = out.write(shell.worktree_color) catch unreachable;
+                out.writeByte('m') catch unreachable;
+                _ = out.write(" ") catch unreachable;
+                _ = out.write(component.name) catch unreachable;
+                _ = out.write("\x1B[0m ") catch unreachable;
+            }
+
+            if (relative_path.len == 0) {
+                _ = out.write("./") catch unreachable;
+            } else {
+                out.writeByte('.') catch unreachable;
+                _ = out.write(relative_path) catch unreachable;
             }
 
             _ = out.write("\x1B[38;5;") catch unreachable;
@@ -59,6 +83,8 @@ pub fn main() void {
             _ = out.write("m [ ") catch unreachable;
             git.parseHeadInto(alloc, full_git_path, out);
             _ = out.write(" ]\x1B[0m") catch unreachable;
+        } else {
+            _ = out.write(cwd) catch unreachable;
         }
 
         stoa.stamp(session, session_data) catch unreachable;

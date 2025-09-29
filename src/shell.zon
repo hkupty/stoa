@@ -1,6 +1,8 @@
 .{
     .prompt = "→",
     .git_color = "12",
+    .repo_color = "166",
+    .worktree_color = "148",
     .rprompt = .{
         .kubernetes,
         .aws,
