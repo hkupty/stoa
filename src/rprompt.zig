@@ -17,6 +17,8 @@ const parts = enum {
 const Shell = struct {
     rprompt: []const parts,
     prompt: []const u8,
+    repo_color: []const u8,
+    worktree_color: []const u8,
     git_color: []const u8,
 };
 
