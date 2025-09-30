@@ -59,10 +59,10 @@ pub fn main() void {
                 out.writeByte(' ') catch unreachable;
             }
 
+            out.writeByte('.') catch unreachable;
             if (relative_path.len == 0) {
-                _ = out.write("./") catch unreachable;
+                out.writeByte('/') catch unreachable;
             } else {
-                out.writeByte('.') catch unreachable;
                 _ = out.write(relative_path) catch unreachable;
             }
 
