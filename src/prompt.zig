@@ -56,6 +56,7 @@ pub fn main() void {
                 _ = out.write(" ") catch unreachable;
                 _ = out.write(component.name) catch unreachable;
                 stoa.color.clear_format(out);
+                out.writeByte(' ') catch unreachable;
             }
 
             if (relative_path.len == 0) {
