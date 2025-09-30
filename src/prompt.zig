@@ -12,22 +12,15 @@ var prompt: [2 * 1024]u8 = undefined;
 var stdout_fwriter = stdout.writer(&prompt);
 var out = &stdout_fwriter.interface;
 
-fn session_file(alloc: Allocator) ?std.fs.File {
-    const key = std.process.getEnvVarOwned(alloc, "STOA_SESION") catch {
-        // TODO: Must not spill errors
-        return null;
-    };
-    return std.fs.createFileAbsolute(key, .{}) catch {
-        return null;
-    };
-}
-
 pub fn main() void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const alloc = arena.allocator();
 
-    const session = session_file(alloc).?;
+    const session = stoa.get_session_file(alloc, .read_write).?;
+    defer session.close();
+    var session_data = stoa.getdata(session) catch unreachable;
+    session_data.in_git = false;
 
     out.writeByte('\n') catch unreachable;
 
@@ -38,18 +31,14 @@ pub fn main() void {
         };
 
         var path_iter = path.componentIterator(cwd) catch break :has_git;
-        defer session.close();
-        var session_data = stoa.getdata(session) catch unreachable;
-        session_data.in_git = false;
 
         if (git.is_in_git(alloc, &path_iter)) |git_path| {
             const folder = path.basename(git_path);
-            _ = out.write("\x1B[38;5;") catch unreachable;
-            _ = out.write(shell.repo_color) catch unreachable;
-            out.writeByte('m') catch unreachable;
+            stoa.color.write_color(out, shell.repo_color);
             _ = out.write(" ") catch unreachable;
             _ = out.write(folder) catch unreachable;
-            _ = out.write("\x1B[0m ") catch unreachable;
+            stoa.color.clear_format(out);
+            out.writeByte(' ') catch unreachable;
 
             var relative_path = cwd[git_path.len..];
 
@@ -63,12 +52,10 @@ pub fn main() void {
                 relative_path = cwd[component.path.len..];
                 full_git_path = target;
 
-                _ = out.write("\x1B[38;5;") catch unreachable;
-                _ = out.write(shell.worktree_color) catch unreachable;
-                out.writeByte('m') catch unreachable;
+                stoa.color.write_color(out, shell.worktree_color);
                 _ = out.write(" ") catch unreachable;
                 _ = out.write(component.name) catch unreachable;
-                _ = out.write("\x1B[0m ") catch unreachable;
+                stoa.color.clear_format(out);
             }
 
             if (relative_path.len == 0) {
@@ -78,20 +65,23 @@ pub fn main() void {
                 _ = out.write(relative_path) catch unreachable;
             }
 
-            _ = out.write("\x1B[38;5;") catch unreachable;
-            _ = out.write(shell.git_color) catch unreachable;
-            _ = out.write("m [ ") catch unreachable;
+            stoa.color.write_color(out, shell.git_color);
+            _ = out.write(" [ ") catch unreachable;
             git.parseHeadInto(alloc, full_git_path, out);
-            _ = out.write(" ]\x1B[0m") catch unreachable;
+            _ = out.write(" ]") catch unreachable;
+            stoa.color.clear_format(out);
         } else {
             _ = out.write(cwd) catch unreachable;
         }
 
-        stoa.stamp(session, session_data) catch unreachable;
+        stoa.stamp(session, &session_data) catch unreachable;
     }
+    const prompt_color: u8 = if (session_data.success) 101 else 130;
 
     out.writeByte('\n') catch unreachable;
+    stoa.color.write_color(out, prompt_color);
     _ = out.write(shell.prompt) catch unreachable;
+    stoa.color.clear_format(out);
     out.writeByte(' ') catch unreachable;
 
     out.flush() catch unreachable;

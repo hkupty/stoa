@@ -6,7 +6,6 @@ Think of [oh-my-posh](https://github.com/JanDeDobbeleer/oh-my-posh), but:
 - written in zig;
 - written for my own use-case, instead of something generic;
 
-
 ## Why?
 
 - Because I wanted to get my hands dirty with zig;
@@ -16,6 +15,22 @@ Think of [oh-my-posh](https://github.com/JanDeDobbeleer/oh-my-posh), but:
 - Because I love performance and this is at least two orders of magnitude faster (benchmark below):
     - No, being that fast is not relevant at all. It just makes me happy.
     - Anything below 250ms is already fast enough, but I wanted to make this anyway.
+
+
+## Architecture
+
+There are a few binaries that work together to make this happen:
+
+- `stoa-prompt`: The main one, draws the prompt
+- `stoa-rprompt`: Draws the rprompt on the side
+- `stoa-status`: Captures the status of previously run commands
+- `stoa-transient`: Ensures a clean transient shell
+- `stoa-session`: Starts a new session
+
+All the binaries are minimal and follow a few rules:
+- No errors should leak out: Make the output ugly, but never bubble out an error.
+- Internal communication happen through the session file
+- Each app "owns" writes for their own fields, everyone else can read them
 
 ## Benchmark
 

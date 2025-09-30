@@ -5,7 +5,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const mod = b.addModule("stoa", .{
-        .root_source_file = b.path("src/root.zig"),
+        .root_source_file = b.path("lib/root.zig"),
         .target = target,
     });
 
@@ -22,6 +22,20 @@ pub fn build(b: *std.Build) void {
     });
 
     b.installArtifact(transient);
+
+    const status = b.addExecutable(.{
+        .name = "stoa-status",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/status.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "stoa", .module = mod },
+            },
+        }),
+    });
+
+    b.installArtifact(status);
 
     const session = b.addExecutable(.{
         .name = "stoa-session",

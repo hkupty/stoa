@@ -19,4 +19,5 @@ tasks:
           - rprompt
           - session
           - transient
+          - status
         cmd: mv ./zig-out/bin/stoa-{{.ITEM}} ~/.local/bin/

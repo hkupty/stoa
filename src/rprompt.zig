@@ -17,29 +17,16 @@ const parts = enum {
 const Shell = struct {
     rprompt: []const parts,
     prompt: []const u8,
-    repo_color: []const u8,
-    worktree_color: []const u8,
-    git_color: []const u8,
+    repo_color: u8,
+    worktree_color: u8,
+    git_color: u8,
 };
-
-fn data(alloc: std.mem.Allocator) ?stoa.RuntimeData {
-    const key = std.process.getEnvVarOwned(alloc, "STOA_SESION") catch {
-        // TODO: Must not spill errors
-        return null;
-    };
-    var file = std.fs.openFileAbsolute(key, .{ .mode = .read_only }) catch {
-        return null;
-    };
-    defer file.close();
-
-    return stoa.getdata(file) catch null;
-}
 
 pub fn main() void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const alloc = arena.allocator();
-    if (data(alloc)) |runtimeData| {
+    if (stoa.atomic_read(alloc)) |runtimeData| {
         if (runtimeData.in_git) {
             for (shell.rprompt, 0..) |piece, ix| {
                 switch (piece) {
@@ -51,17 +38,19 @@ pub fn main() void {
                             _ = out.write(" | ") catch unreachable;
                         }
 
-                        _ = out.write("%{\x1B[38;5;220m%} ") catch unreachable;
+                        stoa.color.write_color(out, 220);
+                        _ = out.write(" ") catch unreachable;
                         _ = out.write(env) catch unreachable;
-                        _ = out.write("%{\x1B[0m%}") catch unreachable;
+                        stoa.color.clear_format(out);
                     },
                     .kubernetes => {
                         if (ix > 0) {
                             _ = out.write(" | ") catch unreachable;
                         }
-                        _ = out.write("%{\x1B[38;5;68m%} ") catch unreachable;
+                        stoa.color.write_color(out, 68);
+                        _ = out.write(" ") catch unreachable;
                         k8s.parse_current_context(out);
-                        _ = out.write("%{\x1B[0m%}") catch unreachable;
+                        stoa.color.clear_format(out);
                     },
                 }
             }
