@@ -22,6 +22,20 @@ const Shell = struct {
     git_color: u8,
 };
 
+pub fn write_prefix(logo: []const u8, color: u8, index: usize) !void {
+    if (index > 0) {
+        _ = try out.write(" | ");
+    }
+    stoa.color.write_color(out, color);
+    _ = try out.write(logo);
+}
+
+pub fn write(logo: []const u8, content: []const u8, color: u8, index: usize) !void {
+    try write_prefix(logo, color, index);
+    _ = try out.write(content);
+    stoa.color.clear_format(out);
+}
+
 pub fn main() void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
@@ -29,23 +43,15 @@ pub fn main() void {
     if (stoa.atomic_read(alloc)) |runtimeData| {
         if (runtimeData.in_git) {
             for (shell.rprompt, 0..) |piece, ix| {
-                if (ix > 0) {
-                    _ = out.write(" | ") catch unreachable;
-                }
-
                 switch (piece) {
                     .aws => {
                         const env = std.process.getEnvVarOwned(alloc, "AWS_PROFILE") catch {
                             continue;
                         };
-                        stoa.color.write_color(out, 220);
-                        _ = out.write(" ") catch unreachable;
-                        _ = out.write(env) catch unreachable;
-                        stoa.color.clear_format(out);
+                        write(" ", env, 220, ix) catch unreachable;
                     },
                     .kubernetes => {
-                        stoa.color.write_color(out, 68);
-                        _ = out.write(" ") catch unreachable;
+                        write_prefix(" ", 68, ix) catch unreachable;
                         k8s.parse_current_context(out);
                         stoa.color.clear_format(out);
                     },
