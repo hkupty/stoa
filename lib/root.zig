@@ -54,3 +54,9 @@ pub fn atomic_read(alloc: Allocator) ?RuntimeData {
 
     return getdata(file) catch null;
 }
+
+test "run all tests" {
+    const testing = std.testing;
+    // testing.refAllDecls(project);
+    testing.refAllDecls(@import("color.zig"));
+}

@@ -25,3 +25,22 @@ pub fn write_color(writer: *Writer, color: u8) void {
 pub fn clear_format(writer: *Writer) void {
     _ = writer.write("%{\x1B[0m%}") catch unreachable;
 }
+
+test "Can convert u8 to string" {
+    const testing = std.testing;
+
+    var sz = to_ascii(1);
+    try testing.expectEqualStrings("1", buf[sz..]);
+
+    sz = to_ascii(10);
+    try testing.expectEqualStrings("10", buf[sz..]);
+
+    sz = to_ascii(100);
+    try testing.expectEqualStrings("100", buf[sz..]);
+
+    sz = to_ascii(255);
+    try testing.expectEqualStrings("255", buf[sz..]);
+
+    sz = to_ascii(31);
+    try testing.expectEqualStrings("31", buf[sz..]);
+}
